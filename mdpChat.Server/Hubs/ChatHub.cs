@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 
-namespace mdpChat
+namespace mdpChat.Server
 {
     public class ChatHub : Hub
     {
