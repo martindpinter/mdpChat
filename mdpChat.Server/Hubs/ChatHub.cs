@@ -6,6 +6,12 @@ namespace mdpChat.Server
 {
     public class ChatHub : Hub
     {
+        private readonly IMessageRepository _messageRepository;
+        public ChatHub(IMessageRepository messageRepository)
+        {
+            _messageRepository = messageRepository;           
+        }
+
         public async Task JoinGroup(string groupName)
         {
             // if group.size <= 20 
@@ -21,11 +27,25 @@ namespace mdpChat.Server
 
         public async Task SendMessageToGroup(string groupName, string message)
         {
+            _messageRepository.Add(new Message()
+            {
+                SenderName = Context.ConnectionId,
+                MessageBody = message,
+                GroupId = 1 // TODO 
+            });
+
             await Clients.Group(groupName).SendAsync(message);
         }
 
         public async Task SendMessageToAll(string user, string message)
         {
+            _messageRepository.Add(new Message()
+            {
+                SenderName = Context.ConnectionId,
+                MessageBody = message,
+                GroupId = 1 // TODO 
+            });
+
             // trusting the user's name from the client will do for now...
             string msg = $"[{ user }]: { message } ";
             await Clients.All.SendAsync("ReceiveMessage", msg);
