@@ -1,18 +1,30 @@
 using System;
 using System.Threading.Tasks;
+using mdpChat.Server.EntityFrameworkCore.Interfaces;
+using mdpChat.Server.EntityFrameworkCore.TableRows;
 using Microsoft.AspNetCore.SignalR;
 
 namespace mdpChat.Server
 {
     public class ChatHub : Hub
     {
+        private readonly IUserRepository _userRepository;
         private readonly IMessageRepository _messageRepository;
-        public ChatHub(IMessageRepository messageRepository)
+        private readonly IGroupRepository _groupRepository;
+        private readonly IMembershipRepository _membershipRepository;
+
+        public ChatHub(IUserRepository userRepository,
+                        IMessageRepository messageRepository,
+                        IGroupRepository groupRepository,
+                        IMembershipRepository membershipRepository)
         {
+            _userRepository = userRepository;
             _messageRepository = messageRepository;           
+            _groupRepository = groupRepository;
+            _membershipRepository = membershipRepository;
         }
 
-        public async Task JoinGroup(string groupName)
+        public async Task JoinGroup(string groupName) // none of these will be async, probably
         {
             // if group.size <= 20 
             await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
@@ -27,34 +39,12 @@ namespace mdpChat.Server
 
         public async Task SendMessageToGroup(string groupName, string message)
         {
-            _messageRepository.Add(new Message()
-            {
-                SenderName = Context.ConnectionId,
-                MessageBody = message,
-                GroupId = 1 // TODO 
-            });
-
             await Clients.Group(groupName).SendAsync(message);
         }
 
-        public async Task SendMessageToAll(string user, string message)
+        public async Task SendMessageToAll(string message)
         {
-            _messageRepository.Add(new Message()
-            {
-                SenderName = Context.ConnectionId,
-                MessageBody = message,
-                GroupId = 1 // TODO 
-            });
-
-            // trusting the user's name from the client will do for now...
-            string msg = $"[{ user }]: { message } ";
-            await Clients.All.SendAsync("ReceiveMessage", msg);
-        }
-
-        public async Task RequestUserName() 
-        {
-            // ConnectionId will not be exposed later on, only debug functionality for now
-            await Clients.Caller.SendAsync("ReceiveUserName", Context.ConnectionId);
+            await Clients.All.SendAsync("ReceiveMessage", message);
         }
 
         public async override Task OnConnectedAsync()
@@ -66,7 +56,7 @@ namespace mdpChat.Server
 
             // notify users in group (factor)
             string message = Context.ConnectionId + " joined the chat.";
-            await SendMessageToAll("SYSTEM", message);
+            await Clients.All.SendAsync("ReceiveMessage", message);
 
             await base.OnConnectedAsync();
         }
