@@ -1,2 +1,2 @@
 # mdpChat
-Simple chat back-end in AspNetCore with SignalR
+Simple chat back-end in AspNetCore using SignalR and EntityFrameworkCore
