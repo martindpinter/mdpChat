@@ -17,6 +17,7 @@ namespace mdpChat.Server.EntityFrameworkCore
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<Group>().HasData(
                 new Group() {
                     Id = 1,
