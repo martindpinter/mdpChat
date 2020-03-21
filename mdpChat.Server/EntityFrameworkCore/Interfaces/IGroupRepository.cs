@@ -7,6 +7,12 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
     {
         void Add(Group group);
 
+        Group GetGroup(string groupName);
+
         IEnumerable<Group> GetAllGroups();
+
+        int CountMembers(Group group);
+
+        bool GroupExists(string groupName);
     }
 }
