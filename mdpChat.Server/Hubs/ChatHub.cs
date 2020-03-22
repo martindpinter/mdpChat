@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using mdpChat.Server.EntityFrameworkCore.Interfaces;
 using mdpChat.Server.EntityFrameworkCore.TableRows;
 using mdpChat.Server.Models;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Configuration;
 
 namespace mdpChat.Server
 {
@@ -13,25 +15,31 @@ namespace mdpChat.Server
         private readonly IMessageRepository _messageRepository;
         private readonly IGroupRepository _groupRepository;
         private readonly IMembershipRepository _membershipRepository;
+        private readonly IClientRepository _clientRepository;
 
-        #region Public, directly invokable methods (via SignalR connections)
         public ChatHub(IUserRepository userRepository,
                         IMessageRepository messageRepository,
                         IGroupRepository groupRepository,
-                        IMembershipRepository membershipRepository)
+                        IMembershipRepository membershipRepository,
+                        IClientRepository clientRepository)
         {
             _userRepository = userRepository;
             _messageRepository = messageRepository;           
             _groupRepository = groupRepository;
             _membershipRepository = membershipRepository;
+            _clientRepository = clientRepository;
         }
+
+        #region Public, directly invokable methods (via SignalR connections)
 
         public async override Task OnConnectedAsync()
         {
+            HandleConnection(Context.ConnectionId);
             // Global chat is considered a group
-            await Groups.AddToGroupAsync(Context.ConnectionId, "Global");
+            await Groups.AddToGroupAsync(Context.ConnectionId, "Global"); // TODO - add "Global" group name to config
 
-            // update clients...
+            // UpdateClients(); // groups, message history, (changes) etc
+
 
             // notify users in group (factor)
             string message = Context.ConnectionId + " joined the chat.";
@@ -56,14 +64,25 @@ namespace mdpChat.Server
 
         public async Task OnCreateGroup(string groupName)
         {
-            throw new NotImplementedException();    // same as Join Group! (in signalr)
+            throw new NotImplementedException();    // same as Join Group! (in signalr concept)
         }
 
-        public async Task OnRemoveGroup(string groupName)
+        public async Task OnDeleteGroup(string groupName)
         {
-            throw new NotImplementedException();
+            OperationResult res = HandleDeleteGroup(groupName);
 
-            // remove all connections from group!
+            if (res.Successful)
+            {
+                List<Client> clientsInGroup = _clientRepository.GetClientsInGroup(groupName);
+                foreach (Client client in clientsInGroup)
+                {
+                    await Groups.RemoveFromGroupAsync(client.ConnectionId, groupName);
+                }
+            }
+            else
+            {
+                await ReturnErrorMessage(res.ErrorMessage);
+            }
         }
 
         public async Task OnJoinGroup(string userName, string groupName) // none of these will be async, probably
@@ -81,14 +100,6 @@ namespace mdpChat.Server
             }
 
             await UpdateClients();
-
-            // TODO: move to HandleJoinGroup private function
-            // ^with custom return type of possible error enums etc
-
-            // !! valamit itt elfelejtek hogy a Group-muveleteknel (meg a tobbinel is) checkoljak (nem a dbSaveChanges())
-            // talan a FirstOrDefault..? valszeg nem...
-            // membership-be beladassal kapcsolatos..?
-
         }
 
         public async Task OnLeaveGroup(string userName, string groupName)
@@ -115,11 +126,13 @@ namespace mdpChat.Server
         #endregion
 
         #region Private, directly not invokable methods (via SignalR connections)
+
         private async Task UpdateClients()
         {
             // update all clients on changes to memberships/groups/etc
             throw new NotImplementedException();
         }
+
         private async Task ReturnErrorMessage(string errorMessage)
         {
             await Clients.Caller.SendAsync("ReceiveErrorMessage", errorMessage);
@@ -127,6 +140,15 @@ namespace mdpChat.Server
         #endregion
 
         #region DB syncing methods - THESE ARE NOT SUPPOSED TO BE IN THE HUB!
+
+        public OperationResult HandleConnection(string connectionId)
+        {
+            // check if connectionId is already in db...?
+            _clientRepository.Add(new Client() { ConnectionId = connectionId });
+            return new OperationResult();
+
+        }
+
         public OperationResult HandleLogIn(string userName)
         {
             // very primitive...
@@ -134,6 +156,8 @@ namespace mdpChat.Server
             {
                 _userRepository.Add(new User() { Name = userName });
             }
+
+            HandleJoinGroup(userName, "General");
             return new OperationResult();
         }
 
@@ -144,7 +168,7 @@ namespace mdpChat.Server
 
             if (user != null && group != null)
             {
-                if (_groupRepository.CountMembers(group) < 20)
+                if (!_groupRepository.IsFull(group))
                 {
                     _membershipRepository.Add(new Membership()
                     {
@@ -178,6 +202,17 @@ namespace mdpChat.Server
                 return new OperationResult() { ErrorMessage = $"No membership exists for user({ user.Name }) in group({ group.Name })."};
             }
             return new OperationResult() { ErrorMessage = $"Can't find user({ userName }) or group({ groupName }) to join in." };
+        }
+
+        public OperationResult HandleDeleteGroup(string groupName)
+        {
+            Group group = _groupRepository.GetGroup(groupName);
+            if (group != null)
+            {
+                _membershipRepository.RemoveAllForGroup(group);
+                return new OperationResult();
+            }
+            return new OperationResult() { ErrorMessage = $"Can't find group({ groupName} ) to delete" };
         }
 
         public OperationResult HandleSendMessageToGroup(string userName, string groupName, string message)

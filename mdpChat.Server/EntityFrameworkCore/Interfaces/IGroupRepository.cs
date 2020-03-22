@@ -11,6 +11,8 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
 
         IEnumerable<Group> GetAllGroups();
 
+        bool IsFull(Group group);
+
         int CountMembers(Group group);
 
         bool GroupExists(string groupName);

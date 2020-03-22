@@ -16,7 +16,7 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
         #region IGroupRepository implementation
         public void Add(Group group)
         {
-            group.Id = _context.Groups.Max(x => x.Id) + 1; // verify!
+            group.Id = _context.Groups.Any() ? _context.Groups.Max(x => x.Id) + 1 : 1;
             _context.Groups.Add(group);
             _context.SaveChanges();
         }
@@ -29,6 +29,12 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
         public IEnumerable<Group> GetAllGroups()
         {
             return _context.Groups;
+        }
+
+        public bool IsFull(Group group)
+        {
+            int count = _context.Memberships.Where(x => x.GroupId == group.Id).Count();
+            return count >= 20; // TODO - define max count in configuration
         }
 
         public int CountMembers(Group group)

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using mdpChat.Server.EntityFrameworkCore.Interfaces;
 using mdpChat.Server.EntityFrameworkCore.TableRows;
@@ -18,6 +19,11 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             return _context.Memberships.FirstOrDefault(x => x.UserId == user.Id && x.GroupId == group.Id);
         }
 
+        public List<Membership> GetMembershipsInGroup(Group group)
+        {
+            return _context.Memberships.Where(x => x.GroupId == group.Id).ToList();
+        }
+
         public bool MembershipExists(User user, Group group)
         {
             return _context.Memberships.Any(x => x.UserId == user.Id && x.GroupId == group.Id);
@@ -25,14 +31,25 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
 
         public void Add(Membership membership)
         {
-            membership.Id = _context.Memberships.Max(x => x.Id) + 1;
+            membership.Id = _context.Memberships.Any() ? _context.Memberships.Max(x => x.Id) + 1 : 1;
             _context.Memberships.Add(membership);
             _context.SaveChanges();
         }
 
         public void Remove(Membership membership)
         {
-            throw new System.NotImplementedException();
+            // VERIFY!
+            Membership membershipToRemove = _context.Memberships.FirstOrDefault(x => x.UserId == membership.UserId && x.GroupId == membership.GroupId);
+            _context.Memberships.Remove(membershipToRemove);
+            _context.SaveChanges();
+        }
+
+        public void RemoveAllForGroup(Group group)
+        {
+            // VERIFY!
+            List<Membership> membershipsToRemove = _context.Memberships.Where(x => x.GroupId == group.Id).ToList();
+            _context.Memberships.RemoveRange(membershipsToRemove);
+            _context.SaveChanges();
         }
         #endregion
     }
