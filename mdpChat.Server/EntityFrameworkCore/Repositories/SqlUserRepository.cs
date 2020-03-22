@@ -20,7 +20,6 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
 
         public void Add(User user) // AddUnique? 
         {
-            user.Id = _context.Users.Any() ? _context.Users.Max(x => x.Id) + 1 : 1;
             _context.Users.Add(user);
             _context.SaveChanges();
         }

@@ -17,8 +17,6 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
         #region IClientRepository implementation
         public void Add(Client client)
         {
-            client.Id = _context.Clients.Any() ? _context.Clients.Max(x => x.Id) + 1 : 1;
-            client.UserIdAssigned = 999;
             _context.Clients.Add(client);
             _context.SaveChanges();
         }

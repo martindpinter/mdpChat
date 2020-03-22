@@ -17,7 +17,6 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
         #region IMessageRepository implementation
         public void Add(Message message)
         {
-            message.Id = _context.Messages.Any() ? _context.Messages.Max(x => x.Id) + 1 : 1;
             _context.Messages.Add(message);
             _context.SaveChanges();
         }

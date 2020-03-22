@@ -31,7 +31,6 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
 
         public void Add(Membership membership)
         {
-            membership.Id = _context.Memberships.Any() ? _context.Memberships.Max(x => x.Id) + 1 : 1;
             _context.Memberships.Add(membership);
             _context.SaveChanges();
         }

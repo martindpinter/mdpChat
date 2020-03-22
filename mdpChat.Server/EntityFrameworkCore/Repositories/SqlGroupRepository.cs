@@ -16,7 +16,6 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
         #region IGroupRepository implementation
         public void Add(Group group)
         {
-            group.Id = _context.Groups.Any() ? _context.Groups.Max(x => x.Id) + 1 : 1;
             _context.Groups.Add(group);
             _context.SaveChanges();
         }

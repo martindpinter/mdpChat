@@ -11,6 +11,7 @@ namespace mdpChat.Server
 {
     public class ChatHub : Hub
     {
+        private readonly string _globalChatRoomName = "Global"; // move to config?
         private readonly IUserRepository _userRepository;
         private readonly IMessageRepository _messageRepository;
         private readonly IGroupRepository _groupRepository;
@@ -34,24 +35,22 @@ namespace mdpChat.Server
 
         public async override Task OnConnectedAsync()
         {
-            HandleConnection(Context.ConnectionId);
-            // Global chat is considered a group
-            await Groups.AddToGroupAsync(Context.ConnectionId, "Global"); // TODO - add "Global" group name to config
-
-            // UpdateClients(); // groups, message history, (changes) etc
-
-
-            // notify users in group (factor)
-            string message = Context.ConnectionId + " joined the chat.";
-            await Clients.All.SendAsync("ReceiveMessage", message);
-
             await base.OnConnectedAsync();
+
+            HandleConnection(Context.ConnectionId);
+
+            // Global chat is considered a group
+            await Groups.AddToGroupAsync(Context.ConnectionId, _globalChatRoomName); // TODO - add "Global" group name to config
+
+            // UpdateClients(); // groups, message history, (changes) etc ....
         }
 
         public async override Task OnDisconnectedAsync(Exception ex)    // if Exception is null, termination was intentional
         {
+            HandleDisconnection(Context.ConnectionId);
+            
             // remove from all groups in which user is present... (todo)
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, "Global");
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, _globalChatRoomName);
             await base.OnDisconnectedAsync(ex);
         }
 
@@ -119,7 +118,7 @@ namespace mdpChat.Server
             // update clients...
         }
 
-        public async Task SendMessageToGroup(string groupName, string message)
+        public async Task OnSendMessageToGroup(string groupName, string message)
         {
             await Clients.Group(groupName).SendAsync(message);
         }
@@ -146,7 +145,6 @@ namespace mdpChat.Server
             // check if connectionId is already in db...?
             _clientRepository.Add(new Client() { ConnectionId = connectionId });
             return new OperationResult();
-
         }
 
         public OperationResult HandleLogIn(string userName)
