@@ -1,6 +1,12 @@
 "use strict";
 
-var userName = "";
+const globalChatRoomName = "General";
+var currentGroup;
+
+class ServerUpdate {
+    usersInGeneralChat;    
+}
+
 
 var connection = new signalR.HubConnectionBuilder()
                         .withUrl("/ChatHub")
@@ -15,38 +21,42 @@ connection.on("ReceiveMessage", function(msg) {
     AppendMessage(msg);
 });
 
-connection.on("ReceiveUserName", function(msg) {
-    userName = msg;
+connection.on("ReceiveMessageFromGroup", function(authorName, groupName, msg) {
+    AppendMessage("[" + groupName + "] " + authorName + ": " + msg);
 });
 
 connection.start().then(function() {
     console.log('Connected!');
-    connection.invoke("RequestUserName").catch(function(err) {
-        return console.error(err.toString());
-    });
-    event.preventDefault();
 }).catch(function(err) {
     return console.error(err.toString());
-})
+});
 
 document.getElementById("txtComposeMessage").onkeydown = function(event) {
     event = event || window.event;
     if (event.keyCode == 13) {  // 13: ENTER
         var msg = document.getElementById("txtComposeMessage").value;
-        SendMessageToServer(msg);
+        connection.invoke("OnSendMessageToGroup", currentGroup, msg).catch(function(err) {
+            return console.error(err.toString);
+        });
         document.getElementById("txtComposeMessage").value = "";
     }
 }
 
-function SendMessageToServer(msg) {
-    if (userName) {
-        connection.invoke("SendMessageToAll", userName, msg).catch(function(err) {
-            return console.error(err.toString());
+document.getElementById("txtLoginUserName").onkeydown = function(event) {
+    event = event || window.event;
+    if (event.keyCode == 13) {  // 13: ENTER
+        var msg = document.getElementById("txtLoginUserName").value;
+        connection.invoke("OnLogIn", msg).catch(function(err) {
+            return console.error(err.toString);
         });
-        event.preventDefault();
-    } else {
-        console.log("UserName is not set.");
+        document.getElementById("txtLoginUserName").disabled = true;
+        currentGroup = globalChatRoomName;
+        LoadInformation();
     }
+}
+
+function LoadInformation() {
+    document.getElementById("divCurrentRoomName").innerHTML = currentGroup;
 }
 
 function AppendMessage(msg) {

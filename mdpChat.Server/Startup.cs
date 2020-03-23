@@ -9,6 +9,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using mdpChat.Server.EntityFrameworkCore;
+using mdpChat.Server.EntityFrameworkCore.Repositories;
+using mdpChat.Server.EntityFrameworkCore.Interfaces;
 
 namespace mdpChat.Server
 {
@@ -32,8 +35,11 @@ namespace mdpChat.Server
             services.AddRazorPages();
             services.AddSignalR();
 
-            // services.AddSingleton<IMessageRepository, InMemoryMessageRepository>();
-            services.AddScoped<IMessageRepository, SQLMessageRepository>();
+            services.AddScoped<IMessageRepository, SqlMessageRepository>();
+            services.AddScoped<IUserRepository, SqlUserRepository>();
+            services.AddScoped<IGroupRepository, SqlGroupRepository>();
+            services.AddScoped<IMembershipRepository, SqlMembershipRepository>();
+            services.AddScoped<IClientRepository, SqlClientRepository>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
