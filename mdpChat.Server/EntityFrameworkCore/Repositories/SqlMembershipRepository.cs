@@ -37,7 +37,7 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
 
         public void Remove(Membership membership)
         {
-            // VERIFY!
+            // VERIFY! - find? 
             Membership membershipToRemove = _context.Memberships.FirstOrDefault(x => x.UserId == membership.UserId && x.GroupId == membership.GroupId);
             _context.Memberships.Remove(membershipToRemove);
             _context.SaveChanges();

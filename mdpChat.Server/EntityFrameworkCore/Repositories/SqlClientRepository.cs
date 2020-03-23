@@ -21,6 +21,20 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             _context.SaveChanges();
         }
 
+        public void UpdateAsNew(Client client)
+        {
+            Client existingClient = _context.Clients.Single(x => x.ConnectionId == client.ConnectionId);
+            existingClient.UserIdAssigned = null;
+            _context.SaveChanges();
+
+        }
+
+        public void Remove(Client client)
+        {
+            _context.Clients.Remove(client);
+            _context.SaveChanges();
+        }
+
         public Client GetClient(string connectionId)
         {
             return _context.Clients.FirstOrDefault(x => x.ConnectionId == connectionId);

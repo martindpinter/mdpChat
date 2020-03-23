@@ -11,7 +11,7 @@ namespace mdpChat.Server
 {
     public class ChatHub : Hub
     {
-        private readonly string _globalChatRoomName = "Global"; // move to config?
+        private readonly string _globalChatRoomName = "General"; // move to config?
         private readonly IUserRepository _userRepository;
         private readonly IMessageRepository _messageRepository;
         private readonly IGroupRepository _groupRepository;
@@ -40,7 +40,7 @@ namespace mdpChat.Server
             HandleConnection(Context.ConnectionId);
 
             // Global chat is considered a group
-            await Groups.AddToGroupAsync(Context.ConnectionId, _globalChatRoomName); // TODO - add "Global" group name to config
+            // await Groups.AddToGroupAsync(Context.ConnectionId, _globalChatRoomName); // TODO - add "Global" group name to config
 
             // UpdateClients(); // groups, message history, (changes) etc ....
         }
@@ -48,22 +48,32 @@ namespace mdpChat.Server
         public async override Task OnDisconnectedAsync(Exception ex)    // if Exception is null, termination was intentional
         {
             HandleDisconnection(Context.ConnectionId);
-            
-            // remove from all groups in which user is present... (todo)
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, _globalChatRoomName);
             await base.OnDisconnectedAsync(ex);
+
+            // SignalR automatically removes disconnected connections' ConnectionIds on Disconnect
         }
 
         public async Task OnLogIn(string userName)
         {
             HandleLogIn(userName);
+            await Groups.AddToGroupAsync(Context.ConnectionId, _globalChatRoomName);
 
             await UpdateClients();
         }
 
         public async Task OnCreateGroup(string groupName)
         {
-            throw new NotImplementedException();    // same as Join Group! (in signalr concept)
+            OperationResult res = HandleCreateGroup(groupName);
+
+            if (res.Successful)
+            {
+                // Same as OnJoinGroup, signalr concept-wise
+                await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            }
+            else
+            {
+                await ReturnErrorMessage(res.ErrorMessage);
+            }
         }
 
         public async Task OnDeleteGroup(string groupName)
@@ -91,7 +101,6 @@ namespace mdpChat.Server
             if (res.Successful)
             {
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-                // user's connectionId must be stored somewhere?
             }
             else 
             {
@@ -120,7 +129,9 @@ namespace mdpChat.Server
 
         public async Task OnSendMessageToGroup(string groupName, string message)
         {
-            await Clients.Group(groupName).SendAsync(message);
+            HandleSendMessageToGroup(groupName, message);
+            string authorName = _clientRepository.GetUserAttached(Context.ConnectionId).Name;
+            await Clients.Group(groupName).SendAsync("ReceiveMessageFromGroup", authorName, groupName, message);
         }
         #endregion
 
@@ -128,8 +139,10 @@ namespace mdpChat.Server
 
         private async Task UpdateClients()
         {
+            await Clients.All.SendAsync("ReceiveUpdate", "UPDATE_OBJ");
+            // TODO!
             // update all clients on changes to memberships/groups/etc
-            throw new NotImplementedException();
+            // throw new NotImplementedException();
         }
 
         private async Task ReturnErrorMessage(string errorMessage)
@@ -142,20 +155,46 @@ namespace mdpChat.Server
 
         public OperationResult HandleConnection(string connectionId)
         {
+            // REVISE!! (existing clients and whatnot)
             // check if connectionId is already in db...?
-            _clientRepository.Add(new Client() { ConnectionId = connectionId });
+            Client existingClient = _clientRepository.GetClient(connectionId);
+            if (existingClient != null)
+            {
+                // make old connectionId vacant for new client
+                _clientRepository.UpdateAsNew(existingClient);
+            }
+            else
+            {
+                _clientRepository.Add(new Client() { ConnectionId = connectionId });
+            }
             return new OperationResult();
+        }
+
+        public OperationResult HandleDisconnection(string connectionId)
+        {
+            Client client = _clientRepository.GetClient(connectionId);
+            
+            if (client == null)
+                return new OperationResult() { ErrorMessage = "Error disconnecting: no client exists with ConnectionId \"{ connectionId}\"" }; // not going to show ever, why do I even bother? exceptions pls...?
+
+            _clientRepository.Remove(client);
+            return new OperationResult();
+            // TODO - remove all connectionIds from joined groups -  probably not necessary! (is it?)
+            // VERIFY!!
         }
 
         public OperationResult HandleLogIn(string userName)
         {
-            // very primitive...
-            if (!_userRepository.UserExists(userName))
+            User user = _userRepository.GetUser(userName);
+
+            if (user == null)
             {
                 _userRepository.Add(new User() { Name = userName });
+                user = _userRepository.GetUser(userName);  // not nice :(
             }
 
-            HandleJoinGroup(userName, "General");
+            _clientRepository.AssignUser(Context.ConnectionId, user);
+            HandleJoinGroup(userName, _globalChatRoomName);
             return new OperationResult();
         }
 
@@ -164,58 +203,73 @@ namespace mdpChat.Server
             User user = _userRepository.GetUser(userName);
             Group group = _groupRepository.GetGroup(groupName);
 
-            if (user != null && group != null)
+            if (user == null)
+                return new OperationResult() { ErrorMessage = "Error joining group: no user exists with name \"{ userName }\"" };
+
+            if (group == null) 
             {
-                if (!_groupRepository.IsFull(group))
-                {
-                    _membershipRepository.Add(new Membership()
-                    {
-                        UserId = user.Id,
-                        GroupId = group.Id
-                    });
-                    return new OperationResult();
-                }
-                return new OperationResult() { ErrorMessage = $"{ group.Name } is full" };
+                // return new OperationResult() { ErrorMessage = "Error joining group: no group exists with name \"{ groupName }\"" };
+                _groupRepository.Add(new Group() { Name = groupName });
+                group = _groupRepository.GetGroup(groupName); // not nice, again :(  (return Group?)
             }
-            return new OperationResult() { ErrorMessage = $"Can't find user({ user.Name }) or group({ group.Name }) to join" };
+
+            if (_groupRepository.IsFull(group)) 
+                return new OperationResult() { ErrorMessage = "Error joining group: group \"{ group.Name }\" is full" };
+
+            _membershipRepository.Add(new Membership()
+            {
+                UserId = user.Id,
+                GroupId = group.Id
+            });
+            return new OperationResult();
         }
 
         public OperationResult HandleLeaveGroup(string userName, string groupName)
         {
             User user = _userRepository.GetUser(userName);
             Group group = _groupRepository.GetGroup(groupName);
+            Membership membership = _membershipRepository.GetMembership(user, group);
 
-            if (user != null && group != null)
+            if (user == null)
+                return new OperationResult() { ErrorMessage = $"Error leaving group: no user exists with name \"{ userName }\"" };
+
+            if (group == null)
+                return new OperationResult() { ErrorMessage = $"Error leaving group: no group exists with name \"{ groupName }\"" };
+
+            if (membership == null)
+                return new OperationResult() { ErrorMessage = $"Error leaving group: user \"{ user.Name }\" is not a member of group \"{ group.Name }\"" };
+
+            _membershipRepository.Remove(new Membership()
             {
-                Membership membership = _membershipRepository.GetMembership(user, group);
-                if (membership != null)
-                {
-                    _membershipRepository.Add(new Membership()
-                    {
-                        UserId = user.Id,
-                        GroupId = group.Id
-                    });
-                    return new OperationResult();
-                }
-                return new OperationResult() { ErrorMessage = $"No membership exists for user({ user.Name }) in group({ group.Name })."};
-            }
-            return new OperationResult() { ErrorMessage = $"Can't find user({ userName }) or group({ groupName }) to join in." };
+                UserId = user.Id,
+                GroupId = group.Id
+            });
+            return new OperationResult();
+        }
+
+        public OperationResult HandleCreateGroup(string groupName)
+        {
+            // TODO!!!!
+            _groupRepository.Add(new Group()
+            {
+                Name = groupName
+            });
+            return new OperationResult();
         }
 
         public OperationResult HandleDeleteGroup(string groupName)
         {
             Group group = _groupRepository.GetGroup(groupName);
-            if (group != null)
-            {
-                _membershipRepository.RemoveAllForGroup(group);
-                return new OperationResult();
-            }
-            return new OperationResult() { ErrorMessage = $"Can't find group({ groupName} ) to delete" };
+            if (group == null)
+                return new OperationResult() { ErrorMessage = $"Error deleting group: no group exists with name \"{ groupName } \"" };
+
+            _membershipRepository.RemoveAllForGroup(group);
+            return new OperationResult();
         }
 
-        public OperationResult HandleSendMessageToGroup(string userName, string groupName, string message)
+        public OperationResult HandleSendMessageToGroup(string groupName, string message)
         {
-            User user = _userRepository.GetUser(userName);
+            User user = _clientRepository.GetUserAttached(Context.ConnectionId);
             Group group = _groupRepository.GetGroup(groupName);
 
             if (user != null && group != null)
@@ -232,7 +286,7 @@ namespace mdpChat.Server
                 }
                 return new OperationResult() { ErrorMessage = $"User({ user.Name }) is not a member of group({ group.Name})."};
             }
-            return new OperationResult() { ErrorMessage = $"Can't find user({ userName }) or group({ groupName }) to send message to."};
+            return new OperationResult() { ErrorMessage = $"Can't find user for this connection or group({ groupName }) to send message to."};
 
         }
         #endregion
