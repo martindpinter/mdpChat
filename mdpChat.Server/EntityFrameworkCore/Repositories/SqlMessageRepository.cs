@@ -21,9 +21,10 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             _context.SaveChanges();
         }
 
-        public List<Message> GetAllMessagesInGroup(int groupId)
+        public List<Message> GetAllMessagesInGroup(string groupName)
         {
-            return _context.Messages.Where(x => x.GroupId == groupId).ToList();
+            Group group = _context.Groups.FirstOrDefault(x => x.Name == groupName);
+            return _context.Messages.Where(x => x.GroupId == group.Id).ToList();
         }
         #endregion
     }

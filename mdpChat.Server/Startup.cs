@@ -40,6 +40,8 @@ namespace mdpChat.Server
             services.AddScoped<IGroupRepository, SqlGroupRepository>();
             services.AddScoped<IMembershipRepository, SqlMembershipRepository>();
             services.AddScoped<IClientRepository, SqlClientRepository>();
+
+            services.AddScoped<IDataManager, DataManager>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

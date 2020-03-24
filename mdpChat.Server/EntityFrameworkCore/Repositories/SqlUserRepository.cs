@@ -20,7 +20,7 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             return _context.Users.Any(x => x.Name == userName);
         }
 
-        public void Add(User user) // AddUnique? 
+        public void Add(User user)
         {
             _context.Users.Add(user);
             _context.SaveChanges();
@@ -45,22 +45,6 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
                                 (user, membership) => new { tempUser = user, tempMembership = membership })
                             .Select(x => x.tempUser)
                             .ToList();
-
-                
-                        
-
-
-            // List<Membership> membershipsInGroup = _context.Memberships.Where(x => x.GroupId == group.Id).ToList();
-
-            // return _context.Users.Where(x => membershipsInGroup.Any(y => y.UserId == x.Id)).ToList();
-
-
-            // List<Membership> membershipsCopy = JsonSerializer.Deserialize<List<Membership>>(JsonSerializer.Serialize(membershipsInGroup));
-            // List<User> usersCopy = JsonSerializer.Deserialize<List<User>>(JsonSerializer.Serialize(_context.Users.ToList()));
-
-            // List<User> result = usersCopy.Where(x => membershipsCopy.Any(y => y.UserId == x.Id)).ToList();
-
-            // return _context.Users.Where(x => membershipsInGroup.Any(y => y.UserId == x.Id)).ToList();
         }
         #endregion
     }
