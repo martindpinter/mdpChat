@@ -9,7 +9,7 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
 
         Group GetGroup(string groupName);
 
-        IEnumerable<Group> GetAllGroups();
+        List<Group> GetAllGroups();
 
         bool IsFull(Group group);
 

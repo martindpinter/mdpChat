@@ -61,7 +61,7 @@ namespace mdpChat.Server.EntityFrameworkCore.Migrations
                         new
                         {
                             Id = 1,
-                            Name = "Global"
+                            Name = "General"
                         });
                 });
 

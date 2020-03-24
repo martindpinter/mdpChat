@@ -6,6 +6,8 @@ using mdpChat.Server.EntityFrameworkCore.TableRows;
 using mdpChat.Server.Models;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
+using System.Linq;
+using System.Text.Json;
 
 namespace mdpChat.Server
 {
@@ -38,11 +40,6 @@ namespace mdpChat.Server
             await base.OnConnectedAsync();
 
             HandleConnection(Context.ConnectionId);
-
-            // Global chat is considered a group
-            // await Groups.AddToGroupAsync(Context.ConnectionId, _globalChatRoomName); // TODO - add "Global" group name to config
-
-            // UpdateClients(); // groups, message history, (changes) etc ....
         }
 
         public async override Task OnDisconnectedAsync(Exception ex)    // if Exception is null, termination was intentional
@@ -50,15 +47,14 @@ namespace mdpChat.Server
             HandleDisconnection(Context.ConnectionId);
             await base.OnDisconnectedAsync(ex);
 
-            // SignalR automatically removes disconnected connections' ConnectionIds on Disconnect
+            // SignalR automatically removes disconnected ConnectionIds from SignalR Groups on Disconnect
         }
 
         public async Task OnLogIn(string userName)
         {
             HandleLogIn(userName);
-            await Groups.AddToGroupAsync(Context.ConnectionId, _globalChatRoomName);
 
-            await UpdateClients();
+            await OnJoinGroup(userName, _globalChatRoomName);
         }
 
         public async Task OnCreateGroup(string groupName)
@@ -107,7 +103,13 @@ namespace mdpChat.Server
                 await ReturnErrorMessage(res.ErrorMessage);
             }
 
-            await UpdateClients();
+            Group group = _groupRepository.GetGroup(groupName);
+            List<Message> msgList = _messageRepository.GetAllMessagesInGroup(group.Id);
+            string serialized = JsonSerializer.Serialize(msgList);
+
+            await Clients.Caller.SendAsync("ReceiveMessagesOfGroup", groupName, serialized);
+            // await Clients.Group(groupName).SendAsync("ReceiveMessageUpdate", serialized);
+            // await UpdateClients();
         }
 
         public async Task OnLeaveGroup(string userName, string groupName)
@@ -122,9 +124,6 @@ namespace mdpChat.Server
             {
                 await ReturnErrorMessage(res.ErrorMessage);
             }
-
-            await UpdateClients();
-            // update clients...
         }
 
         public async Task OnSendMessageToGroup(string groupName, string message)
@@ -133,17 +132,24 @@ namespace mdpChat.Server
             string authorName = _clientRepository.GetUserAttached(Context.ConnectionId).Name;
             await Clients.Group(groupName).SendAsync("ReceiveMessageFromGroup", authorName, groupName, message);
         }
+
+        public async Task OnGetUsersInGroup(string groupName)
+        {
+            List<User> userList = _userRepository.GetUsersInGroup(groupName);
+            string serialized = JsonSerializer.Serialize(userList);
+            await Clients.Caller.SendAsync("ReceiveUsersInGroup", groupName, serialized);
+        }
+
+        public async Task OnGetGroupsList()
+        {
+            List<Group> res = _groupRepository.GetAllGroups();
+            string serialized = JsonSerializer.Serialize(res);
+            await Clients.Caller.SendAsync("ReceiveGroupsList", serialized);
+        }
+
         #endregion
 
         #region Private, directly not invokable methods (via SignalR connections)
-
-        private async Task UpdateClients()
-        {
-            await Clients.All.SendAsync("ReceiveUpdate", "UPDATE_OBJ");
-            // TODO!
-            // update all clients on changes to memberships/groups/etc
-            // throw new NotImplementedException();
-        }
 
         private async Task ReturnErrorMessage(string errorMessage)
         {
@@ -155,17 +161,16 @@ namespace mdpChat.Server
 
         public OperationResult HandleConnection(string connectionId)
         {
-            // REVISE!! (existing clients and whatnot)
-            // check if connectionId is already in db...?
             Client existingClient = _clientRepository.GetClient(connectionId);
-            if (existingClient != null)
+
+            if (existingClient == null)
             {
-                // make old connectionId vacant for new client
-                _clientRepository.UpdateAsNew(existingClient);
+                _clientRepository.Add(new Client() { ConnectionId = connectionId });
             }
             else
             {
-                _clientRepository.Add(new Client() { ConnectionId = connectionId });
+                // make old connectionId vacant for new client
+                _clientRepository.UpdateAsNew(existingClient);
             }
             return new OperationResult();
         }
@@ -179,8 +184,6 @@ namespace mdpChat.Server
 
             _clientRepository.Remove(client);
             return new OperationResult();
-            // TODO - remove all connectionIds from joined groups -  probably not necessary! (is it?)
-            // VERIFY!!
         }
 
         public OperationResult HandleLogIn(string userName)
@@ -194,7 +197,10 @@ namespace mdpChat.Server
             }
 
             _clientRepository.AssignUser(Context.ConnectionId, user);
-            HandleJoinGroup(userName, _globalChatRoomName);
+            OperationResult res = HandleJoinGroup(userName, _globalChatRoomName);
+            if (!res.Successful)
+                return res;
+
             return new OperationResult();
         }
 
@@ -208,7 +214,6 @@ namespace mdpChat.Server
 
             if (group == null) 
             {
-                // return new OperationResult() { ErrorMessage = "Error joining group: no group exists with name \"{ groupName }\"" };
                 _groupRepository.Add(new Group() { Name = groupName });
                 group = _groupRepository.GetGroup(groupName); // not nice, again :(  (return Group?)
             }
@@ -272,22 +277,22 @@ namespace mdpChat.Server
             User user = _clientRepository.GetUserAttached(Context.ConnectionId);
             Group group = _groupRepository.GetGroup(groupName);
 
-            if (user != null && group != null)
-            {
-                if (_membershipRepository.MembershipExists(user, group))
-                {
-                    _messageRepository.Add(new Message
-                    {
-                        AuthorId = user.Id,
-                        GroupId = group.Id,
-                        MessageBody = message,
-                    });
-                    return new OperationResult();
-                }
-                return new OperationResult() { ErrorMessage = $"User({ user.Name }) is not a member of group({ group.Name})."};
-            }
-            return new OperationResult() { ErrorMessage = $"Can't find user for this connection or group({ groupName }) to send message to."};
+            if (user == null)
+                return new OperationResult() { ErrorMessage = $"Error sending message to group \"{ groupName }\": no user is bound to current connection" };
 
+            if (group == null)
+                return new OperationResult() { ErrorMessage = $"Error sending message to group \"{ groupName }\": no such group exists" };
+
+            if (!_membershipRepository.MembershipExists(user, group))
+                return new OperationResult() { ErrorMessage = $"Error sending message to group \"{ group.Name }\": User \"{ user.Name }\" is not a member of the group" };
+
+            _messageRepository.Add(new Message
+            {
+                AuthorId = user.Id,
+                GroupId = group.Id,
+                MessageBody = message,
+            });
+            return new OperationResult();
         }
         #endregion
 

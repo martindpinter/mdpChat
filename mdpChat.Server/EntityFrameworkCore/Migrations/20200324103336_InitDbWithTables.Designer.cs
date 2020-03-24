@@ -10,7 +10,7 @@ using mdpChat.Server.EntityFrameworkCore;
 namespace mdpChat.Server.EntityFrameworkCore.Migrations
 {
     [DbContext(typeof(ChatDbContext))]
-    [Migration("20200322115147_InitDbWithTables")]
+    [Migration("20200324103336_InitDbWithTables")]
     partial class InitDbWithTables
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -63,7 +63,7 @@ namespace mdpChat.Server.EntityFrameworkCore.Migrations
                         new
                         {
                             Id = 1,
-                            Name = "Global"
+                            Name = "General"
                         });
                 });
 

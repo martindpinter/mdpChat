@@ -79,7 +79,7 @@ namespace mdpChat.Server.EntityFrameworkCore.Migrations
             migrationBuilder.InsertData(
                 table: "Groups",
                 columns: new[] { "Id", "Capacity", "Name" },
-                values: new object[] { 1, null, "Global" });
+                values: new object[] { 1, null, "General" });
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

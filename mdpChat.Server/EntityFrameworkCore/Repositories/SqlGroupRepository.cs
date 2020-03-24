@@ -25,15 +25,18 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             return _context.Groups.FirstOrDefault(x => x.Name == groupName);
         }
 
-        public IEnumerable<Group> GetAllGroups()
+        public List<Group> GetAllGroups()
         {
-            return _context.Groups;
+            return _context.Groups.ToList();
         }
 
         public bool IsFull(Group group)
         {
-            int count = _context.Memberships.Where(x => x.GroupId == group.Id).Count();
-            return count >= 20; // TODO - define max count in configuration
+            // DEBUG HACK!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            return false;
+
+            // int count = _context.Memberships.Where(x => x.GroupId == group.Id).Count();
+            // return count >= 20; // TODO - define max count in configuration
         }
 
         public int CountMembers(Group group)

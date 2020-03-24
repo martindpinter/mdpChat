@@ -22,7 +22,7 @@ namespace mdpChat.Server.EntityFrameworkCore
             modelBuilder.Entity<Group>().HasData(
                 new Group() {
                     Id = 1,
-                    Name = "Global"
+                    Name = "General"
                 }
             );
         }

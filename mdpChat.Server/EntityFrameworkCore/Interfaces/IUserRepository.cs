@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using mdpChat.Server.EntityFrameworkCore.TableRows;
 
 namespace mdpChat.Server.EntityFrameworkCore.Interfaces
@@ -9,5 +10,7 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
         void Add(User user);
         
         User GetUser(string name);
+        
+        List<User> GetUsersInGroup(string groupName);
     }
 }

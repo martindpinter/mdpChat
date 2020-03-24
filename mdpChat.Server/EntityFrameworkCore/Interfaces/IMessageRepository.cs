@@ -6,7 +6,7 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
     public interface IMessageRepository
     {
         void Add(Message message);
-        IEnumerable<Message> GetAllMessagesInGroup(int groupId);
+        List<Message> GetAllMessagesInGroup(int groupId);
     }
 
 }

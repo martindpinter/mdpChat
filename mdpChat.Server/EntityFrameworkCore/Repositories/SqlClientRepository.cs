@@ -48,12 +48,19 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
         public List<Client> GetClientsInGroup(string groupName)
         {
             Group group = _context.Groups.FirstOrDefault(x => x.Name == groupName);
-            if (group != null)
-            {
-                List<Membership> membershipsInGroup = _context.Memberships.Where(x => x.GroupId == group.Id).ToList();
-                return _context.Clients.Where(x => membershipsInGroup.Any(y => y.UserId == x.UserIdAssigned)).ToList();
-            }
-            return null;
+            if (group == null)
+                return null;
+
+            // List<Membership> membershipsInGroup = _context.Memberships.Where(x => x.GroupId == group.Id).ToList();
+            // return _context.Clients.Where(x => membershipsInGroup.Any(y => y.UserId == x.UserIdAssigned)).ToList();
+
+            return _context.Clients
+                            .Join(_context.Memberships.Where(x => x.GroupId == group.Id),
+                                client => client.UserIdAssigned,
+                                membership => membership.UserId,
+                                (client, membership) => new {tempClient = client, tempMembership = membership })
+                            .Select(x => x.tempClient)
+                            .ToList();
         }
 
         public void AssignUser(string connectionId, User user)
