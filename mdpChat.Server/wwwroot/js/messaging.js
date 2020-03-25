@@ -89,12 +89,12 @@ connection.on("UserDisconnected", function(user) {
     }
 });
 
-connection.on("ChannelCreated", function(channel) {
+connection.on("GroupCreated", function(group) {
     channels.push(group);
     renderPage();
 });
 
-connection.on("ChannelDeleted", function(channel) {
+connection.on("GroupDeleted", function(channel) {
     var indexToRemove = channels.indexOf(channel);
     if (indexToRemove > -1) {
         channels.splice(indexToRemove, 1);
@@ -136,16 +136,31 @@ function msgSendOnKeyDown(event) {
     }
 }
 
+function createNewGroup(event) {
+    event = event || window.event;
+    if (event.keyCode == 13) {
+        var msg = document.getElementById("txtCreateGroup").value;
+        connection.invoke("OnCreateGroup", msg).catch(function(err) {
+            return console.error(err.toString);
+        });
+        document.getElementById("txtCreateGroup").value = "";
+    }
+}
+
 function renderChannelList(divChannelList) {
     console.log("in renderChannelList, length: " + channels.length);
     if (channels) {
-        console.log(1);
         divChannelList.innerHTML = "";
         for (var i = 0; i < channels.length; i++) {
             var div = document.createElement("div");
-            div.innerHTML = channels[i].name;
+            div.innerHTML = channels[i];
             divChannelList.appendChild(div);
         }
+        var txtCreateGroup = document.createElement("input");
+        txtCreateGroup.type = "text";
+        txtCreateGroup.id = "txtCreateGroup";
+        txtCreateGroup.onkeydown = createNewGroup;
+        divChannelList.appendChild(txtCreateGroup);
     }
 }
 

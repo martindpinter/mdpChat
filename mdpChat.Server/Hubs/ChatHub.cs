@@ -49,7 +49,7 @@ namespace mdpChat.Server
         {
             _db.HandleLogin(Context.ConnectionId, userName);
 
-            List<Group> groups = _db.GetAllGroups();
+            List<string> groups = _db.GetAllGroups().Select(x => x.Name).ToList(); // db optimize!
             await Clients.Caller.SendAsync("LoginAccepted", userName, groups);
             await OnJoinGroup(userName, _globalChatRoomName);
         }
@@ -62,6 +62,7 @@ namespace mdpChat.Server
             {
                 // Same as OnJoinGroup, signalr concept-wise
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+                await Clients.All.SendAsync("GroupCreated", groupName);
             }
             else
             {
@@ -80,6 +81,7 @@ namespace mdpChat.Server
                 {
                     await Groups.RemoveFromGroupAsync(client.ConnectionId, groupName);
                 }
+                await Clients.All.SendAsync("GroupDeleted", groupName);
             }
             else
             {
@@ -161,12 +163,12 @@ namespace mdpChat.Server
             await Clients.Caller.SendAsync("ReceiveUsersInGroup", groupName, serialized);
         }
 
-        public async Task OnGetGroupsList()
-        {
-            List<Group> res = _db.GetAllGroups();
-            string serialized = JsonSerializer.Serialize(res);
-            await Clients.Caller.SendAsync("ReceiveGroupsList", serialized);
-        }
+        // public async Task OnGetGroupsList()
+        // {
+        //     List<Group> res = _db.GetAllGroups();
+        //     string serialized = JsonSerializer.Serialize(res);
+        //     await Clients.Caller.SendAsync("ReceiveGroupsList", serialized);
+        // }
         #endregion
 
         #region Private, directly not invokable methods (via SignalR connections)
