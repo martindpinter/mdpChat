@@ -35,7 +35,7 @@ namespace mdpChat.Server
 
             _db.HandleDisconnection(Context.ConnectionId);
 
-            if (!user.IsOnline)
+            if (user != null && !user.IsOnline)
             {
                 await Clients.All.SendAsync("UserDisconnected", user.Name);
             }
@@ -48,6 +48,7 @@ namespace mdpChat.Server
         public async Task OnLogin(string userName)
         {
             _db.HandleLogin(Context.ConnectionId, userName);
+            await Clients.Caller.SendAsync("LoginAccepted", userName);
             await OnJoinGroup(userName, _globalChatRoomName);
         }
 

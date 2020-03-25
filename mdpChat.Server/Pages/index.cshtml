@@ -1,23 +1,12 @@
 @page
+<link rel="stylesheet" href="~/css/style.css" />
 
-<label for="txtLoginUserName">UserName: </label>
-<input type="text" id="txtLoginUserName" />
-
-<label for="txtComposeMessage">Message: </label>
-<input type="text" id="txtComposeMessage" />
-
-<h5>Current room: </h5>
-<div id="divCurrentRoomName"></div>
-
-<h5>Users in current group: </h5>
-<div id="divUsersInCurrentGroup"></div>
-
-<h5>Groups: </h5>
-<div id="divGroups"></div>
-
-<h5>Messages: </h5>
-<div id="divMessages"></div>
-
+<div id="divMain" class="centered">
+    <div id="divLogin" class="centered">
+        <h5>name</h5>
+        <input type="text" id="txtLogin" />
+    </div>
+</div>
 
 <script src="~/lib/signalr.js"></script>
 <script src="~/js/messaging.js"></script>
