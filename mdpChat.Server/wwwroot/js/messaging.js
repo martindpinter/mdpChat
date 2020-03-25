@@ -21,53 +21,71 @@ var channels = [];
 var usersInCurrentChannel = [];
 var messagesInCurrentChannel = [];
 
-connection.on("LoginAccepted", function(userNameReceived) { 
+connection.on("LoginAccepted", function(userNameReceived, channelList) { 
     userName = userNameReceived; 
+    channels = channelList;
+    // channels = JSON.parse(channelList);
     renderPage();
 });
 
-connection.on("ReceiveUserList", function(channel, userList) {
+connection.on("GroupJoined", function(groupName, usersInGroup, msgList) {
+    currentChannelName = groupName;
+    messagesInCurrentChannel = msgList;
+    usersInCurrentChannel = usersInGroup;
+    renderPage();
+});
+
+connection.on("ReceiveUserList", function(channel, userList) { // not used atm
     if (currentChannelName == channel) {
-        usersInCurrentChannel = [];
-        for (var i = 0; i < userList.length; i++) {
-            usersInCurrentChannel.push(userList[i]);
-        }
+        usersInCurrentChannel = JSON.parse(userList);
         renderPage();
     }
 });
 
-connection.on("ReceiveChannelList", function(channelList) {
-    channels = [];
-    for (var i = 0; i < channelList.length; i++) {
-        channels.push(channelList[i]);
-    }
-    renderPage();
-});
+// connection.on("ReceiveChannelList", function(channelList) {
+//     channels = [];
+//     for (var i = 0; i < channelList.length; i++) {
+//         channels.push(channelList[i]);
+//     }
+//     renderPage();
+// });
 
 connection.on("ReceiveMessageList", function(channel, msgList) {
     if (currentChannelName == channel) {
         messagesInCurrentChannel = [];
-        for (var i = 0; i < msgList.length; i++) {
-            messagesInCurrentChannel.push(msgList[i]);
+        var deserialized = JSON.parse(msgList);
+        for (var i = 0; i < deserialized.length; i++) {
+            messagesInCurrentChannel.push(deserialized[i]);
         }
+        // console.log("messagesInCurrentChannel: " + messagesInCurrentChannel);
         renderPage();
     }
 })
 
-connection.on("UserJoined", function(channel, user) {
+// connection.on("UserConnected", function())
+
+connection.on("UserJoinedChannel", function(channel, user) {
     if (currentChannelName == channel) {
         usersInCurrentChannel.push(user);
         renderPage();
     }
 });
 
-connection.on("UserLeft", function(channel, user) {
+connection.on("UserLeftChannel", function(channel, user) {
     if (currentChannelName == channel) {
         var indexToRemove = usersInCurrentChannel.indexOf(user);
         if (indexToRemove > -1) {
             usersInCurrentChannel.splice(indexToRemove, 1);
             renderPage();
         }
+    }
+});
+
+connection.on("UserDisconnected", function(user) {
+    var indexToRemove = usersInCurrentChannel.indexOf(user);
+    if (indexToRemove > -1) {
+        usersInCurrentChannel.splice(indexToRemove, 1);
+        renderPage();
     }
 });
 
@@ -85,22 +103,14 @@ connection.on("ChannelDeleted", function(channel) {
 });
 
 connection.on("MessageReceived", function(channel, message) {
+    console.log(currentChannelName + " " + channel);
     if (currentChannelName == channel) {
         messagesInCurrentChannel.push(message);
+        console.log("render from MessageReceived");
         renderPage();
     }
+    console.log("messagesInCurrentChannel: " + JSON.parse(messagesInCurrentChannel));
 });
-
-// document.getElementById("txtComposeMessage").onkeydown = function(event) {
-//     event = event || window.event;
-//     if (event.keyCode == 13) {  // 13: ENTER
-//         var msg = document.getElementById("txtComposeMessage").value;
-//         connection.invoke("OnSendMessageToGroup", currentGroup, msg).catch(function(err) {
-//             return console.error(err.toString);
-//         });
-//         document.getElementById("txtComposeMessage").value = "";
-//     }
-// }
 
 document.getElementById("txtLogin").onkeydown = function(event) {
     event = event || window.event;
@@ -115,6 +125,52 @@ document.getElementById("txtLogin").onkeydown = function(event) {
     }
 }
 
+function msgSendOnKeyDown(event) {
+    event = event || window.event;
+    if (event.keyCode == 13) {  // 13: ENTER
+        var msg = document.getElementById("txtComposeMessage").value;
+        connection.invoke("OnSendMessageToGroup", currentChannelName, msg).catch(function(err) {
+            return console.error(err.toString);
+        });
+        document.getElementById("txtComposeMessage").value = "";
+    }
+}
+
+function renderChannelList(divChannelList) {
+    console.log("in renderChannelList, length: " + channels.length);
+    if (channels) {
+        console.log(1);
+        divChannelList.innerHTML = "";
+        for (var i = 0; i < channels.length; i++) {
+            var div = document.createElement("div");
+            div.innerHTML = channels[i].name;
+            divChannelList.appendChild(div);
+        }
+    }
+}
+
+function renderMessages(divMessages) {
+    if (messagesInCurrentChannel) {
+        divMessages.innerHTML = "";
+        for (var i = 0; i < messagesInCurrentChannel.length; i++) {
+            var div = document.createElement("div");
+            div.innerHTML = messagesInCurrentChannel[i].authorName + ": " + messagesInCurrentChannel[i].messageBody;
+            divMessages.appendChild(div);
+        }
+    }
+}
+
+function renderUserList(divUserList) {
+    if (usersInCurrentChannel) {
+        usersInCurrentChannel = [...new Set(usersInCurrentChannel)].sort();
+        divUserList.innerHTML = "";
+        for (var i = 0; i < usersInCurrentChannel.length; i++) {
+            var div = document.createElement("div");
+            div.innerHTML = usersInCurrentChannel[i];
+            divUserList.appendChild(div);
+        }
+    }
+}
 
 function renderPage() {
     var divMain = document.getElementById("divMain");
@@ -159,16 +215,21 @@ function renderPage() {
 
     divMain.appendChild(divChat);
 
-    divUserName.innerHTML = userName; // "mdpChat";
-    divCurrentChannel.innerHTML = "ChannelName";
+    divUserName.innerHTML = "Logged in as <b><u>" + userName + "</u></b>"; // "mdpChat";
+    divCurrentChannel.innerHTML = currentChannelName;
     divUserListLabel.innerHTML = "UsersInGroup";
 
     divChannelList.innerHTML = "Channels";
     divMessages.innerHTML = "Messages";
     divUserList.innerHTML = "Users";
 
-    var txtMessage = document.createElement("input");
-    txtMessage.type = "text";
-    txtMessage.id = "txtMessage";
-    divFooter.appendChild(txtMessage);
+    var txtComposeMessage = document.createElement("input");
+    txtComposeMessage.type = "text";
+    txtComposeMessage.id = "txtComposeMessage";
+    txtComposeMessage.onkeydown = msgSendOnKeyDown;
+    divFooter.appendChild(txtComposeMessage);
+
+    renderChannelList(divChannelList);
+    renderMessages(divMessages);
+    renderUserList(divUserList);
 }

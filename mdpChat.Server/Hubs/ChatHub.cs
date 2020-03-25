@@ -48,7 +48,9 @@ namespace mdpChat.Server
         public async Task OnLogin(string userName)
         {
             _db.HandleLogin(Context.ConnectionId, userName);
-            await Clients.Caller.SendAsync("LoginAccepted", userName);
+
+            List<Group> groups = _db.GetAllGroups();
+            await Clients.Caller.SendAsync("LoginAccepted", userName, groups);
             await OnJoinGroup(userName, _globalChatRoomName);
         }
 
@@ -107,14 +109,11 @@ namespace mdpChat.Server
                 GroupName = _db.GetGroup(x.GroupId).Name,
                 MessageBody = x.MessageBody
             }).ToList();
+            List<User> userList = _db.GetUsersInGroup(group.Name);
+            List<string> userNames = userList.Select(x => x.Name).ToList(); // CLEAN AND WRITE SPEC DB QUERY
 
-            string serialized = JsonSerializer.Serialize(apiMsgList);
-
-            await Clients.Caller.SendAsync("ReceiveMessagesOfGroup", groupName, serialized);
-
-            // Update clients (refactor!)
-            List<User> usersInGroup = _db.GetUsersInGroup(groupName);
-            await Clients.Group(groupName).SendAsync("ReceiveUsersInGroup", groupName, JsonSerializer.Serialize(usersInGroup));
+            await Clients.Caller.SendAsync("GroupJoined", groupName, userNames, apiMsgList);
+            await Clients.Group(groupName).SendAsync("UserJoinedChannel", groupName, userName);
         }
 
         public async Task OnLeaveGroup(string userName, string groupName)
@@ -130,16 +129,29 @@ namespace mdpChat.Server
                 await ReturnErrorMessage(res.ErrorMessage);
             }
 
+            await Clients.Group(groupName).SendAsync("UserLeftChannel", groupName, userName);
             // Update clients (refactor!)
-            List<User> usersInGroup = _db.GetUsersInGroup(groupName);
-            await Clients.Group(groupName).SendAsync("ReceiveUsersInGroup", groupName, JsonSerializer.Serialize(usersInGroup));
+            // List<User> usersInGroup = _db.GetUsersInGroup(groupName);
+            // await Clients.Group(groupName).SendAsync("ReceiveUsersInGroup", groupName, JsonSerializer.Serialize(usersInGroup));
         }
 
         public async Task OnSendMessageToGroup(string groupName, string message)
         {
-            _db.HandleSendMessageToGroup(groupName, message, Context.ConnectionId);
+            OperationResult res = _db.HandleSendMessageToGroup(groupName, message, Context.ConnectionId);
+            
+            if (!res.Successful)
+                return;
+
             string authorName = _db.GetUserAttached(Context.ConnectionId).Name;
-            await Clients.Group(groupName).SendAsync("ReceiveMessageFromGroup", authorName, groupName, message);
+
+            ApiMessage apiMsg = new ApiMessage()
+            {
+                AuthorName = _db.GetUserAttached(Context.ConnectionId).Name,
+                GroupName = groupName,
+                MessageBody = message
+            };
+
+            await Clients.Group(groupName).SendAsync("MessageReceived", groupName, apiMsg);
         }
 
         public async Task OnGetUsersInGroup(string groupName)
