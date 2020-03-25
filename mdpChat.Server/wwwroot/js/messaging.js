@@ -42,6 +42,13 @@ connection.on("ReceiveUserList", function(channel, userList) { // not used atm
     }
 });
 
+connection.on("GroupChangeApproved", function(newGroup, msgList, userList) {
+    currentChannelName = newGroup;
+    messagesInCurrentChannel = msgList;
+    usersInCurrentChannel = userList;
+    renderPage();
+});
+
 // connection.on("ReceiveChannelList", function(channelList) {
 //     channels = [];
 //     for (var i = 0; i < channelList.length; i++) {
@@ -147,6 +154,13 @@ function createNewGroup(event) {
     }
 }
 
+function changeGroup(divGroupElement) {
+    var newGroup = divGroupElement.innerHTML;
+    connection.invoke("OnChangeGroup", newGroup).catch(function(err) {
+        return console.error(err.toString);
+    });
+}
+
 function renderChannelList(divChannelList) {
     console.log("in renderChannelList, length: " + channels.length);
     if (channels) {
@@ -154,6 +168,8 @@ function renderChannelList(divChannelList) {
         for (var i = 0; i < channels.length; i++) {
             var div = document.createElement("div");
             div.innerHTML = channels[i];
+            div.className = "handPointer";
+            div.onclick = function(localDiv) { return function() { changeGroup(localDiv); } }(div);
             divChannelList.appendChild(div);
         }
         var txtCreateGroup = document.createElement("input");

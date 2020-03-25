@@ -137,6 +137,35 @@ namespace mdpChat.Server
             // await Clients.Group(groupName).SendAsync("ReceiveUsersInGroup", groupName, JsonSerializer.Serialize(usersInGroup));
         }
 
+        public async Task OnChangeGroup(string groupName)
+        {
+            User user = _db.GetUserAttached(Context.ConnectionId);
+            Group group = _db.GetGroup(groupName);
+            if (!_db.MembershipExists(user, group))
+            {
+                _db.AddMembership(new Membership() 
+                {
+                    UserId = user.Id,
+                    GroupId = group.Id
+                });
+                await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+                // return; // valami
+            }
+
+            List<Message> msgList = _db.GetAllMessagesInGroup(groupName);
+            List<ApiMessage> apiMsgList = msgList.Select(x => new ApiMessage()
+            {
+                AuthorName = _db.GetUser(x.AuthorId).Name,
+                GroupName = _db.GetGroup(x.GroupId).Name,
+                MessageBody = x.MessageBody
+            }).ToList();
+            List<User> userList = _db.GetUsersInGroup(groupName);
+            List<string> userNames = userList.Select(x => x.Name).ToList(); // CLEAN AND WRITE SPEC DB QUERY
+
+            await Clients.Caller.SendAsync("GroupChangeApproved", groupName, apiMsgList, userNames);
+            await Clients.Group(groupName).SendAsync("UserJoinedChannel", groupName, user.Name);
+        }
+
         public async Task OnSendMessageToGroup(string groupName, string message)
         {
             OperationResult res = _db.HandleSendMessageToGroup(groupName, message, Context.ConnectionId);
