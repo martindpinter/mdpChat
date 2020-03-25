@@ -25,6 +25,11 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             return _context.Groups.FirstOrDefault(x => x.Name == groupName);
         }
 
+        public Group GetGroup(int id)
+        {
+            return _context.Groups.FirstOrDefault(x => x.Id == id);
+        }
+
         public List<Group> GetAllGroups()
         {
             return _context.Groups.ToList();

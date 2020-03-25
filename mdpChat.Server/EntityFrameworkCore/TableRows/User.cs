@@ -11,6 +11,6 @@ namespace mdpChat.Server.EntityFrameworkCore.TableRows
         public string Name { get; set; }
 
         // necessary?
-        // public bool IsOnline { get; set; }
+        public bool IsOnline { get; set; }
     }
 }

@@ -95,6 +95,11 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             }
             return null;
         }
+
+        public int CountUserConnections(int userId)
+        {
+            return _context.Clients.Count(x => x.UserIdAssigned == userId);
+        }
         #endregion
     }
 }

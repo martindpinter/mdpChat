@@ -9,8 +9,13 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
         
         void Add(User user);
         
+        User GetUser(int id);
         User GetUser(string name);
         
         List<User> GetUsersInGroup(string groupName);
+
+        void SetUserOnline(string userName);
+        void SetUserOffline(string userName);
+        void SetUserOffline(int userId);
     }
 }

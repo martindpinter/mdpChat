@@ -39,6 +39,10 @@ connection.on("ReceiveGroupsList", function(groupsList) {
     console.log("in ReceiveGroupsList: " + groupsList);
     ReloadGroupsList(groupsList);
 });
+
+connection.on("UserDisconnected", function(userName) {
+    RemoveUserFromList(userName);
+});
 // klienseknek kikuldeni az uj messageket (meg etc 2-3 command: onUserJoined, onUserLeft, onNewMessages, onGroupCreated, etc)
 
 connection.start().then(function() {
@@ -86,6 +90,7 @@ function LoadInformation() {
 }
 
 function ReloadUsersInGroup(usersList) {
+    document.getElementById("divUsersInCurrentGroup").innerHTML = "";
     var parsed = JSON.parse(usersList);
     for (var i = 0; i < parsed.length; i++) {
         console.log(i);
@@ -109,7 +114,7 @@ function ReloadMessages(messages) {
     document.getElementById("divMessages").innerHTML = "";
     var parsed = JSON.parse(messages);
     for (var i = 0; i < parsed.length; i++) {
-        var msg = "[" + parsed[i].AuthorId + "]: " + parsed[i].MessageBody;
+        var msg = "[" + parsed[i].GroupName + "] " + parsed[i].AuthorName + ": " + parsed[i].MessageBody;
         AppendMessage(msg)
     }
 }
@@ -118,4 +123,14 @@ function AppendMessage(msg) {
     var div = document.createElement("div");
     div.innerHTML = msg + "<hr />";
     document.getElementById("divMessages").appendChild(div);
+}
+
+function RemoveUserFromList(userName) {
+    var divContainer = document.getElementById("divUsersInCurrentGroup");
+    var divs = divContainer.getElementsByTagName("div");
+    for (var i = 0; i < divs.length; i++) {
+        if (divs[i] == userName) {
+            divs[i].remove();
+        }
+    }
 }

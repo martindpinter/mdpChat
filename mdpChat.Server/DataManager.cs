@@ -9,6 +9,9 @@ namespace mdpChat.Server
     {
         User GetUserAttached(string connectionId);
         List<User> GetUsersInGroup(string groupName);
+        User GetUser(int id);
+        User GetUser(string userName);
+        Group GetGroup(int id);
         Group GetGroup(string groupname);
         List<Group> GetAllGroups();
         List<Client> GetClientsInGroup(string groupName);
@@ -55,6 +58,15 @@ namespace mdpChat.Server
         public List<User> GetUsersInGroup(string groupName) 
             => _userRepository.GetUsersInGroup(groupName);
 
+        public User GetUser(int id)
+            => _userRepository.GetUser(id);
+
+        public User GetUser(string userName)
+            => _userRepository.GetUser(userName);
+
+        public Group GetGroup(int id)
+            => _groupRepository.GetGroup(id);
+
         public Group GetGroup(string groupName) 
             => _groupRepository.GetGroup(groupName);
 
@@ -93,7 +105,18 @@ namespace mdpChat.Server
             if (client == null)
                 return new OperationResult() { ErrorMessage = $"Error disconnecting: no client exists with ConnectionId \"{ connectionId }\"" }; // not going to show ever, why do I even bother? exceptions pls...?
 
+            int? assignedUserId = client.UserIdAssigned;
             _clientRepository.Remove(client);
+
+            // Mark user as Offline if all connected clients were removed
+            if (assignedUserId != null)
+            {
+                if (_clientRepository.CountUserConnections((int)assignedUserId) == 0)
+                {
+                    _userRepository.SetUserOffline((int)assignedUserId);
+                }
+            }
+
             return new OperationResult();
         }
 
@@ -107,7 +130,10 @@ namespace mdpChat.Server
                 user = _userRepository.GetUser(userName);  // not nice :(
             }
 
+
             _clientRepository.AssignUser(connectionId, user);
+            _userRepository.SetUserOnline(user.Name);
+
             OperationResult res = HandleJoinGroup(userName, _globalChatRoomName);
             if (!res.Successful)
                 return res;

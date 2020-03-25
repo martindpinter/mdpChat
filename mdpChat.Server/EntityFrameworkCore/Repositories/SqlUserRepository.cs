@@ -26,6 +26,11 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             _context.SaveChanges();
         }
 
+        public User GetUser(int id)
+        {
+            return _context.Users.FirstOrDefault(x => x.Id == id);
+        }
+
         public User GetUser(string userName)
         {
             return _context.Users.FirstOrDefault(x => x.Name == userName);
@@ -38,13 +43,50 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             if (group == null)
                 return null;
 
-            return _context.Users
+            List<User> res = _context.Users
                             .Join(_context.Memberships.Where(x => x.GroupId == group.Id),
                                 user => user.Id,
                                 membership => membership.UserId,
                                 (user, membership) => new { tempUser = user, tempMembership = membership })
                             .Select(x => x.tempUser)
+                            .Where(x => x.IsOnline == true)
+                            .Distinct()
                             .ToList();
+
+            return res;
+        }
+
+        public void SetUserOnline(string userName)
+        {
+            User user = _context.Users.FirstOrDefault(x => x.Name == userName);
+            
+            if (user == null)
+                return;
+
+            user.IsOnline = true;
+            _context.SaveChanges();
+        }
+
+        public void SetUserOffline(string userName)
+        {
+            User user = _context.Users.FirstOrDefault(x => x.Name == userName);
+
+            if (user == null)
+                return;
+
+            user.IsOnline = false;
+            _context.SaveChanges();
+        }
+
+        public void SetUserOffline(int userId)
+        {
+            User user = _context.Users.FirstOrDefault(x => x.Id == userId);
+
+            if (user == null)
+                return;
+            
+            user.IsOnline = false;
+            _context.SaveChanges();
         }
         #endregion
     }

@@ -31,7 +31,15 @@ namespace mdpChat.Server
 
         public async override Task OnDisconnectedAsync(Exception ex)    // if Exception is null, termination was intentional
         {
+            User user = _db.GetUserAttached(Context.ConnectionId);
+
             _db.HandleDisconnection(Context.ConnectionId);
+
+            if (!user.IsOnline)
+            {
+                await Clients.All.SendAsync("UserDisconnected", user.Name);
+            }
+
             await base.OnDisconnectedAsync(ex);
 
             // SignalR automatically removes disconnected ConnectionIds from SignalR Groups on Disconnect
@@ -90,12 +98,22 @@ namespace mdpChat.Server
             }
 
             Group group = _db.GetGroup(groupName);
+            
             List<Message> msgList = _db.GetAllMessagesInGroup(group.Name);
-            string serialized = JsonSerializer.Serialize(msgList);
+            List<ApiMessage> apiMsgList = msgList.Select(x => new ApiMessage()
+            {
+                AuthorName = _db.GetUser(x.AuthorId).Name,
+                GroupName = _db.GetGroup(x.GroupId).Name,
+                MessageBody = x.MessageBody
+            }).ToList();
+
+            string serialized = JsonSerializer.Serialize(apiMsgList);
 
             await Clients.Caller.SendAsync("ReceiveMessagesOfGroup", groupName, serialized);
-            // await Clients.Group(groupName).SendAsync("ReceiveMessageUpdate", serialized);
-            // await UpdateClients();
+
+            // Update clients (refactor!)
+            List<User> usersInGroup = _db.GetUsersInGroup(groupName);
+            await Clients.Group(groupName).SendAsync("ReceiveUsersInGroup", groupName, JsonSerializer.Serialize(usersInGroup));
         }
 
         public async Task OnLeaveGroup(string userName, string groupName)
@@ -110,6 +128,10 @@ namespace mdpChat.Server
             {
                 await ReturnErrorMessage(res.ErrorMessage);
             }
+
+            // Update clients (refactor!)
+            List<User> usersInGroup = _db.GetUsersInGroup(groupName);
+            await Clients.Group(groupName).SendAsync("ReceiveUsersInGroup", groupName, JsonSerializer.Serialize(usersInGroup));
         }
 
         public async Task OnSendMessageToGroup(string groupName, string message)

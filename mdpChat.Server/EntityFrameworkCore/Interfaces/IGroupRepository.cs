@@ -7,6 +7,8 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
     {
         void Add(Group group);
 
+        Group GetGroup(int id);
+
         Group GetGroup(string groupName);
 
         List<Group> GetAllGroups();

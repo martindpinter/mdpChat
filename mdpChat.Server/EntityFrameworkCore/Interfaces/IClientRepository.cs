@@ -15,5 +15,6 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
         bool ClientExists(string connectionId);
         bool HasUserAttached(string connectionId);
         User GetUserAttached(string connectionId);
+        int CountUserConnections(int userId);
     }
 }
