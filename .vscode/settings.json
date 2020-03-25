@@ -1,0 +1,5 @@
+{
+    "appService.preDeployTask": "publish-release",
+    "appService.deploySubpath": "",
+    "appService.defaultWebAppToDeploy": "/subscriptions/e044b4da-521a-4a3f-a263-b02996ba99c6/resourceGroups/mdpChat/providers/Microsoft.Web/sites/mdpChat"
+}
