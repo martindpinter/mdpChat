@@ -161,6 +161,15 @@ function changeGroup(divGroupElement) {
     });
 }
 
+function leaveGroup() {
+    connection.invoke("OnLeaveGroup", currentChannelName).catch(function(err) {
+        return console.error(err.toString);
+    });
+    connection.invoke("OnChangeGroup", globalChannelName).catch(function(err) {
+        return console.error(err.toString);
+    });
+}
+
 function renderChannelList(divChannelList) {
     console.log("in renderChannelList, length: " + channels.length);
     if (channels) {
@@ -176,6 +185,7 @@ function renderChannelList(divChannelList) {
         txtCreateGroup.type = "text";
         txtCreateGroup.id = "txtCreateGroup";
         txtCreateGroup.onkeydown = createNewGroup;
+        txtCreateGroup.placeholder = "Create group";
         divChannelList.appendChild(txtCreateGroup);
     }
 }
@@ -202,6 +212,7 @@ function renderUserList(divUserList) {
         }
     }
 }
+
 
 function renderPage() {
     var divMain = document.getElementById("divMain");
@@ -248,7 +259,16 @@ function renderPage() {
 
     divUserName.innerHTML = "Logged in as <b><u>" + userName + "</u></b>"; // "mdpChat";
     divCurrentChannel.innerHTML = currentChannelName;
-    divUserListLabel.innerHTML = "UsersInGroup";
+    divCurrentChannel.className = "sideBySide";
+    if (currentChannelName != globalChannelName) {
+        // divCurrentChannel.innerHTML = currentChannelName + '<div onclick="leaveGroup" class="handPointer">[X]</div>';
+        var divLeave = document.createElement("div");
+        divLeave.onclick = leaveGroup;
+        divLeave.className = "handPointer";
+        divLeave.innerHTML = "&nbsp;[X]";
+        divCurrentChannel.appendChild(divLeave);
+    }
+    divUserListLabel.innerHTML = "Users In Current Group";
 
     divChannelList.innerHTML = "Channels";
     divMessages.innerHTML = "Messages";
@@ -257,6 +277,7 @@ function renderPage() {
     var txtComposeMessage = document.createElement("input");
     txtComposeMessage.type = "text";
     txtComposeMessage.id = "txtComposeMessage";
+    txtComposeMessage.placeholder = "Message";
     txtComposeMessage.onkeydown = msgSendOnKeyDown;
     divFooter.appendChild(txtComposeMessage);
 

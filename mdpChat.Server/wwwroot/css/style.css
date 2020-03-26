@@ -108,6 +108,24 @@ h5 {
     box-shadow: 0 0 8px 0 dodgerblue;
 }
 
+#txtCreateGroup {
+    background-color: transparent;
+    width: 85%;
+    height: 20px;
+    border: 1px solid #aaa;
+    border-radius: 6px;
+    outline: none;
+    padding: 12px;
+    color: white;
+    transition: .3s;
+    font-size: 12pt;
+}
+
+#txtCreateGroup:focus {
+    border-color: #1fdb83;
+    box-shadow: 0 0 8px 0 dodgerblue;
+}
+
 #divChannelList {
     width: 15%;
 }
@@ -131,4 +149,9 @@ h5 {
 
 .handPointer {
     cursor: pointer;
+}
+
+.sideBySide {
+    display: flex;
+    flex-flow: row;
 }

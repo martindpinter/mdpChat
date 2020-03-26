@@ -118,9 +118,15 @@ namespace mdpChat.Server
             await Clients.Group(groupName).SendAsync("UserJoinedChannel", groupName, userName);
         }
 
-        public async Task OnLeaveGroup(string userName, string groupName)
+        public async Task OnLeaveGroup(string groupName)
         {
-            OperationResult res = _db.HandleLeaveGroup(userName, groupName);
+            User user = _db.GetUserAttached(Context.ConnectionId);
+            Group group = _db.GetGroup(groupName);
+            if (user == null || group == null)
+                return;
+
+
+            OperationResult res = _db.HandleLeaveGroup(user, group); // user User and Group objects!
 
             if (res.Successful)
             {
@@ -131,7 +137,7 @@ namespace mdpChat.Server
                 await ReturnErrorMessage(res.ErrorMessage);
             }
 
-            await Clients.Group(groupName).SendAsync("UserLeftChannel", groupName, userName);
+            await Clients.Group(groupName).SendAsync("UserLeftChannel", group.Name, user.Name);
             // Update clients (refactor!)
             // List<User> usersInGroup = _db.GetUsersInGroup(groupName);
             // await Clients.Group(groupName).SendAsync("ReceiveUsersInGroup", groupName, JsonSerializer.Serialize(usersInGroup));

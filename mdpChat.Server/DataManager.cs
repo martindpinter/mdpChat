@@ -26,7 +26,7 @@ namespace mdpChat.Server
         OperationResult HandleCreateGroup(string groupName);
         OperationResult HandleDeleteGroup(string groupName);
         OperationResult HandleJoinGroup(string userName, string groupName); // revert params order
-        OperationResult HandleLeaveGroup(string userName, string groupName); // revert params order
+        OperationResult HandleLeaveGroup(User user, Group group); // revert params order
         OperationResult HandleSendMessageToGroup(string groupName, string message, string connectionId);
         
     }
@@ -174,17 +174,15 @@ namespace mdpChat.Server
             return new OperationResult();
         }
 
-        public OperationResult HandleLeaveGroup(string userName, string groupName)
+        public OperationResult HandleLeaveGroup(User user, Group group)
         {
-            User user = _userRepository.GetUser(userName);
-            Group group = _groupRepository.GetGroup(groupName);
             Membership membership = _membershipRepository.GetMembership(user, group);
 
             if (user == null)
-                return new OperationResult() { ErrorMessage = $"Error leaving group: no user exists with name \"{ userName }\"" };
+                return new OperationResult() { ErrorMessage = $"Error leaving group: user is null" };
 
             if (group == null)
-                return new OperationResult() { ErrorMessage = $"Error leaving group: no group exists with name \"{ groupName }\"" };
+                return new OperationResult() { ErrorMessage = $"Error leaving group: group is null" };
 
             if (membership == null)
                 return new OperationResult() { ErrorMessage = $"Error leaving group: user \"{ user.Name }\" is not a member of group \"{ group.Name }\"" };
