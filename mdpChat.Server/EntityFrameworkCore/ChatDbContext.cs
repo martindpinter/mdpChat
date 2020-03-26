@@ -12,17 +12,5 @@ namespace mdpChat.Server.EntityFrameworkCore
         public DbSet<Group> Groups { get; set; }
         public DbSet<Membership> Memberships { get; set; }
         public DbSet<Client> Clients { get; set; }
-
-        // protected override void OnModelCreating(ModelBuilder modelBuilder)
-        // {
-        //     modelBuilder.Entity<Group>().HasData(
-        //         new Group() {
-        //             Id = 1,
-        //             Name = "General",
-        //             Capacity = null
-        //         }
-        //     );
-        //     base.OnModelCreating(modelBuilder);
-        // }
     }
 }
