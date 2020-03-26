@@ -9,11 +9,13 @@ namespace mdpChat.Server
     {
         User GetUserAttached(string connectionId);
         List<User> GetUsersInGroup(string groupName);
+        List<string> GetUserNamesInGroup(string groupName);
         User GetUser(int id);
         User GetUser(string userName);
         Group GetGroup(int id);
         Group GetGroup(string groupname);
         List<Group> GetAllGroups();
+        List<string> GetAllGroupNames();
         List<Client> GetClientsInGroup(string groupName);
         List<Message> GetAllMessagesInGroup(string groupName);
         bool MembershipExists(User user, Group group);
@@ -61,6 +63,9 @@ namespace mdpChat.Server
         public List<User> GetUsersInGroup(string groupName) 
             => _userRepository.GetUsersInGroup(groupName);
 
+        public List<string> GetUserNamesInGroup(string groupName)
+            => _userRepository.GetUserNamesInGroup(groupName);
+
         public User GetUser(int id)
             => _userRepository.GetUser(id);
 
@@ -75,6 +80,9 @@ namespace mdpChat.Server
 
         public List<Group> GetAllGroups() 
             => _groupRepository.GetAllGroups();
+        
+        public List<string> GetAllGroupNames()
+            => _groupRepository.GetAllGroupNames();
 
         public List<Client> GetClientsInGroup(string groupName) 
             => _clientRepository.GetClientsInGroup(groupName);

@@ -39,13 +39,18 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             return _context.Groups.ToList();
         }
 
+        public List<string> GetAllGroupNames()
+        {
+            return _context.Groups.Select(x => x.Name).ToList();
+        }
+
         public bool IsFull(Group group)
         {
             if (group.Capacity == null)
                 return false; // Global channel has unlimited capacity
 
             int count = _context.Memberships.Where(x => x.GroupId == group.Id).Count();
-            return count >= group.Capacity; // TODO - define max count in configuration
+            return count >= group.Capacity; 
         }
 
         public int CountMembers(Group group)

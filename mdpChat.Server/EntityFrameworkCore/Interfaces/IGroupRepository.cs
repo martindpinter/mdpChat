@@ -13,6 +13,8 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
 
         List<Group> GetAllGroups();
 
+        List<string> GetAllGroupNames();
+
         bool IsFull(Group group);
 
         int CountMembers(Group group);

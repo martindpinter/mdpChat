@@ -14,6 +14,8 @@ namespace mdpChat.Server.EntityFrameworkCore.Interfaces
         
         List<User> GetUsersInGroup(string groupName);
 
+        List<string> GetUserNamesInGroup(string groupName);
+
         void SetUserOnline(string userName);
         void SetUserOffline(string userName);
         void SetUserOffline(int userId);

@@ -46,8 +46,9 @@ namespace mdpChat.Server
             if (!res.Successful)
                 return;
 
-            List<string> groups = _db.GetAllGroups().Select(x => x.Name).ToList(); // db optimize!
-            await Clients.Caller.SendAsync("LoginAccepted", userName, groups);
+            List<string> groupNames = _db.GetAllGroupNames();
+
+            await Clients.Caller.SendAsync("LoginAccepted", userName, groupNames);
             await OnJoinGroup(userName, _globalChatRoomName);
         }
 
@@ -84,16 +85,15 @@ namespace mdpChat.Server
             await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
 
             Group group = _db.GetGroup(groupName);
-            List<Message> msgList = _db.GetAllMessagesInGroup(group.Name);
-            List<ApiMessage> apiMsgList = msgList.Select(x => new ApiMessage()
+            
+            List<ApiMessage> apiMsgList = _db.GetAllMessagesInGroup(group.Name).Select(x => new ApiMessage()
             {
                 AuthorName = _db.GetUser(x.AuthorId).Name,
                 GroupName = _db.GetGroup(x.GroupId).Name,
                 MessageBody = x.MessageBody
             }).ToList();
 
-            List<User> userList = _db.GetUsersInGroup(group.Name);
-            List<string> userNames = userList.Select(x => x.Name).ToList(); // CLEAN AND WRITE SPEC DB QUERY
+            List<string> userNames = _db.GetUserNamesInGroup(group.Name);
 
             await Clients.Caller.SendAsync("GroupJoined", groupName, userNames, apiMsgList);
             await Clients.Group(groupName).SendAsync("UserJoinedChannel", groupName, userName);
@@ -134,16 +134,14 @@ namespace mdpChat.Server
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
             }
 
-            List<Message> msgList = _db.GetAllMessagesInGroup(groupName);
-            List<ApiMessage> apiMsgList = msgList.Select(x => new ApiMessage()
+            List<ApiMessage> apiMsgList = _db.GetAllMessagesInGroup(groupName).Select(x => new ApiMessage()
             {
                 AuthorName = _db.GetUser(x.AuthorId).Name,
                 GroupName = _db.GetGroup(x.GroupId).Name,
                 MessageBody = x.MessageBody
             }).ToList();
 
-            List<User> userList = _db.GetUsersInGroup(groupName);
-            List<string> userNames = userList.Select(x => x.Name).ToList(); // CLEAN AND WRITE SPEC DB QUERY
+            List<string> userNames = _db.GetUserNamesInGroup(groupName);
 
             await Clients.Caller.SendAsync("GroupChangeApproved", groupName, apiMsgList, userNames);
             await Clients.Group(groupName).SendAsync("UserJoinedChannel", groupName, user.Name);

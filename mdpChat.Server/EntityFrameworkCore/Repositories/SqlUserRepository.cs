@@ -56,6 +56,27 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
             return res;
         }
 
+        public List<string> GetUserNamesInGroup(string groupName)
+        {
+            Group group = _context.Groups.FirstOrDefault(x => x.Name == groupName);
+
+            if (group == null)
+                return null;
+
+            List<string> res = _context.Users
+                            .Join(_context.Memberships.Where(x => x.GroupId == group.Id),
+                                user => user.Id,
+                                membership => membership.UserId,
+                                (user, membership) => new { tempUser = user, tempMembership = membership })
+                            .Select(x => x.tempUser)
+                            .Where(x => x.IsOnline == true)
+                            .Select(x => x.Name)
+                            .Distinct()
+                            .ToList();
+
+            return res;
+        }
+
         public void SetUserOnline(string userName)
         {
             User user = _context.Users.FirstOrDefault(x => x.Name == userName);
