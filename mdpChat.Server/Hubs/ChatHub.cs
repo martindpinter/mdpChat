@@ -96,26 +96,26 @@ namespace mdpChat.Server
             if (res.Successful)
             {
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+                Group group = _db.GetGroup(groupName);
+                
+                List<Message> msgList = _db.GetAllMessagesInGroup(group.Name);
+                List<ApiMessage> apiMsgList = msgList.Select(x => new ApiMessage()
+                {
+                    AuthorName = _db.GetUser(x.AuthorId).Name,
+                    GroupName = _db.GetGroup(x.GroupId).Name,
+                    MessageBody = x.MessageBody
+                }).ToList();
+                List<User> userList = _db.GetUsersInGroup(group.Name);
+                List<string> userNames = userList.Select(x => x.Name).ToList(); // CLEAN AND WRITE SPEC DB QUERY
+
+                await Clients.Caller.SendAsync("GroupJoined", groupName, userNames, apiMsgList);
+                await Clients.Group(groupName).SendAsync("UserJoinedChannel", groupName, userName);
             }
             else 
             {
                 await ReturnErrorMessage(res.ErrorMessage);
             }
 
-            Group group = _db.GetGroup(groupName);
-            
-            List<Message> msgList = _db.GetAllMessagesInGroup(group.Name);
-            List<ApiMessage> apiMsgList = msgList.Select(x => new ApiMessage()
-            {
-                AuthorName = _db.GetUser(x.AuthorId).Name,
-                GroupName = _db.GetGroup(x.GroupId).Name,
-                MessageBody = x.MessageBody
-            }).ToList();
-            List<User> userList = _db.GetUsersInGroup(group.Name);
-            List<string> userNames = userList.Select(x => x.Name).ToList(); // CLEAN AND WRITE SPEC DB QUERY
-
-            await Clients.Caller.SendAsync("GroupJoined", groupName, userNames, apiMsgList);
-            await Clients.Group(groupName).SendAsync("UserJoinedChannel", groupName, userName);
         }
 
         public async Task OnLeaveGroup(string groupName)
@@ -149,6 +149,9 @@ namespace mdpChat.Server
             Group group = _db.GetGroup(groupName);
             if (!_db.MembershipExists(user, group))
             {
+                if (_db.IsGroupFull(group))
+                    return;
+                    
                 _db.AddMembership(new Membership() 
                 {
                     UserId = user.Id,

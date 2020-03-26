@@ -16,6 +16,10 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
         #region IGroupRepository implementation
         public void Add(Group group)
         {
+            if (_context.Groups.Any(x => x.Name == group.Name))
+                return;
+
+            group.Capacity = 20;
             _context.Groups.Add(group);
             _context.SaveChanges();
         }
@@ -37,11 +41,11 @@ namespace mdpChat.Server.EntityFrameworkCore.Repositories
 
         public bool IsFull(Group group)
         {
-            // DEBUG HACK!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            return false;
+            if (group.Capacity == null)
+                return false; // Global channel has unlimited capacity
 
-            // int count = _context.Memberships.Where(x => x.GroupId == group.Id).Count();
-            // return count >= 20; // TODO - define max count in configuration
+            int count = _context.Memberships.Where(x => x.GroupId == group.Id).Count();
+            return count >= group.Capacity; // TODO - define max count in configuration
         }
 
         public int CountMembers(Group group)

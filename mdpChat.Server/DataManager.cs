@@ -18,6 +18,7 @@ namespace mdpChat.Server
         List<Message> GetAllMessagesInGroup(string groupName);
         bool MembershipExists(User user, Group group);
         void AddMembership(Membership membership);
+        bool IsGroupFull(Group group);
 
 
         OperationResult HandleConnection(string connectionId);
@@ -86,6 +87,9 @@ namespace mdpChat.Server
 
         public void AddMembership(Membership membership)
             => _membershipRepository.Add(membership);
+
+        public bool IsGroupFull(Group group)
+            => _groupRepository.IsFull(group);
         #endregion
 
 
