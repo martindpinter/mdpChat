@@ -26,14 +26,14 @@ namespace mdpChat.Server
         OperationResult HandleLogin(string connectionId, string userName);
         OperationResult HandleCreateGroup(string groupName);
         OperationResult HandleDeleteGroup(string groupName);
-        OperationResult HandleJoinGroup(string userName, string groupName); // revert params order
-        OperationResult HandleLeaveGroup(User user, Group group); // revert params order
+        OperationResult HandleJoinGroup(string userName, string groupName); 
+        OperationResult HandleLeaveGroup(User user, Group group); 
         OperationResult HandleSendMessageToGroup(string groupName, string message, string connectionId);
         
     }
     public class DataManager : IDataManager
     {
-        private readonly string _globalChatRoomName = "General"; // move to config?
+        private readonly string _globalChatRoomName = "General"; // move to config
 
         private IUserRepository _userRepository;
         private IClientRepository _clientRepository;
@@ -201,7 +201,6 @@ namespace mdpChat.Server
 
         public OperationResult HandleCreateGroup(string groupName)
         {
-            // TODO!!!!
             _groupRepository.Add(new Group()
             {
                 Name = groupName

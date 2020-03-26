@@ -13,14 +13,12 @@ namespace mdpChat.Server
 {
     public class ChatHub : Hub
     {
-        private readonly string _globalChatRoomName = "General"; // move to config?
+        private readonly string _globalChatRoomName = "General"; 
         private readonly IDataManager _db;
         public ChatHub(IDataManager dataManager)
         {
             _db = dataManager;
         }
-
-        #region Public, directly invokable methods (via SignalR connections)
 
         public async override Task OnConnectedAsync()
         {
@@ -29,10 +27,9 @@ namespace mdpChat.Server
             _db.HandleConnection(Context.ConnectionId);
         }
 
-        public async override Task OnDisconnectedAsync(Exception ex)    // if Exception is null, termination was intentional
+        public async override Task OnDisconnectedAsync(Exception ex) 
         {
             User user = _db.GetUserAttached(Context.ConnectionId);
-
             _db.HandleDisconnection(Context.ConnectionId);
 
             if (user != null && !user.IsOnline)
@@ -41,13 +38,13 @@ namespace mdpChat.Server
             }
 
             await base.OnDisconnectedAsync(ex);
-
-            // SignalR automatically removes disconnected ConnectionIds from SignalR Groups on Disconnect
         }
 
         public async Task OnLogin(string userName)
         {
-            _db.HandleLogin(Context.ConnectionId, userName);
+            OperationResult res = _db.HandleLogin(Context.ConnectionId, userName);
+            if (!res.Successful)
+                return;
 
             List<string> groups = _db.GetAllGroups().Select(x => x.Name).ToList(); // db optimize!
             await Clients.Caller.SendAsync("LoginAccepted", userName, groups);
@@ -57,64 +54,49 @@ namespace mdpChat.Server
         public async Task OnCreateGroup(string groupName)
         {
             OperationResult res = _db.HandleCreateGroup(groupName);
+            if (!res.Successful)
+                return;
 
-            if (res.Successful)
-            {
-                // Same as OnJoinGroup, signalr concept-wise
-                await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-                await Clients.All.SendAsync("GroupCreated", groupName);
-            }
-            else
-            {
-                await ReturnErrorMessage(res.ErrorMessage);
-            }
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+            await Clients.All.SendAsync("GroupCreated", groupName);
         }
 
         public async Task OnDeleteGroup(string groupName)
         {
             OperationResult res = _db.HandleDeleteGroup(groupName);
+            if (!res.Successful)
+                return;
 
-            if (res.Successful)
+            List<Client> clientsInGroup = _db.GetClientsInGroup(groupName);
+            foreach (Client client in clientsInGroup)
             {
-                List<Client> clientsInGroup = _db.GetClientsInGroup(groupName);
-                foreach (Client client in clientsInGroup)
-                {
-                    await Groups.RemoveFromGroupAsync(client.ConnectionId, groupName);
-                }
-                await Clients.All.SendAsync("GroupDeleted", groupName);
+                await Groups.RemoveFromGroupAsync(client.ConnectionId, groupName);
             }
-            else
-            {
-                await ReturnErrorMessage(res.ErrorMessage);
-            }
+            await Clients.All.SendAsync("GroupDeleted", groupName);
         }
 
-        public async Task OnJoinGroup(string userName, string groupName) // none of these will be async, probably
+        public async Task OnJoinGroup(string userName, string groupName)
         {
             OperationResult res = _db.HandleJoinGroup(userName, groupName);
-            
-            if (res.Successful)
-            {
-                await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-                Group group = _db.GetGroup(groupName);
-                
-                List<Message> msgList = _db.GetAllMessagesInGroup(group.Name);
-                List<ApiMessage> apiMsgList = msgList.Select(x => new ApiMessage()
-                {
-                    AuthorName = _db.GetUser(x.AuthorId).Name,
-                    GroupName = _db.GetGroup(x.GroupId).Name,
-                    MessageBody = x.MessageBody
-                }).ToList();
-                List<User> userList = _db.GetUsersInGroup(group.Name);
-                List<string> userNames = userList.Select(x => x.Name).ToList(); // CLEAN AND WRITE SPEC DB QUERY
+            if (!res.Successful)
+                return;
 
-                await Clients.Caller.SendAsync("GroupJoined", groupName, userNames, apiMsgList);
-                await Clients.Group(groupName).SendAsync("UserJoinedChannel", groupName, userName);
-            }
-            else 
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+
+            Group group = _db.GetGroup(groupName);
+            List<Message> msgList = _db.GetAllMessagesInGroup(group.Name);
+            List<ApiMessage> apiMsgList = msgList.Select(x => new ApiMessage()
             {
-                await ReturnErrorMessage(res.ErrorMessage);
-            }
+                AuthorName = _db.GetUser(x.AuthorId).Name,
+                GroupName = _db.GetGroup(x.GroupId).Name,
+                MessageBody = x.MessageBody
+            }).ToList();
+
+            List<User> userList = _db.GetUsersInGroup(group.Name);
+            List<string> userNames = userList.Select(x => x.Name).ToList(); // CLEAN AND WRITE SPEC DB QUERY
+
+            await Clients.Caller.SendAsync("GroupJoined", groupName, userNames, apiMsgList);
+            await Clients.Group(groupName).SendAsync("UserJoinedChannel", groupName, userName);
 
         }
 
@@ -125,28 +107,20 @@ namespace mdpChat.Server
             if (user == null || group == null)
                 return;
 
+            OperationResult res = _db.HandleLeaveGroup(user, group); 
 
-            OperationResult res = _db.HandleLeaveGroup(user, group); // user User and Group objects!
+            if (!res.Successful)
+                return;
 
-            if (res.Successful)
-            {
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
-            }
-            else 
-            {
-                await ReturnErrorMessage(res.ErrorMessage);
-            }
-
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
             await Clients.Group(groupName).SendAsync("UserLeftChannel", group.Name, user.Name);
-            // Update clients (refactor!)
-            // List<User> usersInGroup = _db.GetUsersInGroup(groupName);
-            // await Clients.Group(groupName).SendAsync("ReceiveUsersInGroup", groupName, JsonSerializer.Serialize(usersInGroup));
         }
 
         public async Task OnChangeGroup(string groupName)
         {
             User user = _db.GetUserAttached(Context.ConnectionId);
             Group group = _db.GetGroup(groupName);
+
             if (!_db.MembershipExists(user, group))
             {
                 if (_db.IsGroupFull(group))
@@ -158,7 +132,6 @@ namespace mdpChat.Server
                     GroupId = group.Id
                 });
                 await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
-                // return; // valami
             }
 
             List<Message> msgList = _db.GetAllMessagesInGroup(groupName);
@@ -168,6 +141,7 @@ namespace mdpChat.Server
                 GroupName = _db.GetGroup(x.GroupId).Name,
                 MessageBody = x.MessageBody
             }).ToList();
+
             List<User> userList = _db.GetUsersInGroup(groupName);
             List<string> userNames = userList.Select(x => x.Name).ToList(); // CLEAN AND WRITE SPEC DB QUERY
 
@@ -178,7 +152,6 @@ namespace mdpChat.Server
         public async Task OnSendMessageToGroup(string groupName, string message)
         {
             OperationResult res = _db.HandleSendMessageToGroup(groupName, message, Context.ConnectionId);
-            
             if (!res.Successful)
                 return;
 
@@ -200,34 +173,5 @@ namespace mdpChat.Server
             string serialized = JsonSerializer.Serialize(userList);
             await Clients.Caller.SendAsync("ReceiveUsersInGroup", groupName, serialized);
         }
-
-        // public async Task OnGetGroupsList()
-        // {
-        //     List<Group> res = _db.GetAllGroups();
-        //     string serialized = JsonSerializer.Serialize(res);
-        //     await Clients.Caller.SendAsync("ReceiveGroupsList", serialized);
-        // }
-        #endregion
-
-        #region Private, directly not invokable methods (via SignalR connections)
-        private async Task ReturnErrorMessage(string errorMessage)
-        {
-            await Clients.Caller.SendAsync("ReceiveErrorMessage", errorMessage);
-        }
-        #endregion
-
-
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-

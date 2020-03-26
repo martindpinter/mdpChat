@@ -35,7 +35,7 @@ connection.on("GroupJoined", function(groupName, usersInGroup, msgList) {
     renderPage();
 });
 
-connection.on("ReceiveUserList", function(channel, userList) { // not used atm
+connection.on("ReceiveUserList", function(channel, userList) { 
     if (currentChannelName == channel) {
         usersInCurrentChannel = JSON.parse(userList);
         renderPage();
@@ -49,14 +49,6 @@ connection.on("GroupChangeApproved", function(newGroup, msgList, userList) {
     renderPage();
 });
 
-// connection.on("ReceiveChannelList", function(channelList) {
-//     channels = [];
-//     for (var i = 0; i < channelList.length; i++) {
-//         channels.push(channelList[i]);
-//     }
-//     renderPage();
-// });
-
 connection.on("ReceiveMessageList", function(channel, msgList) {
     if (currentChannelName == channel) {
         messagesInCurrentChannel = [];
@@ -64,12 +56,9 @@ connection.on("ReceiveMessageList", function(channel, msgList) {
         for (var i = 0; i < deserialized.length; i++) {
             messagesInCurrentChannel.push(deserialized[i]);
         }
-        // console.log("messagesInCurrentChannel: " + messagesInCurrentChannel);
         renderPage();
     }
 })
-
-// connection.on("UserConnected", function())
 
 connection.on("UserJoinedChannel", function(channel, user) {
     if (currentChannelName == channel) {
@@ -128,7 +117,6 @@ document.getElementById("txtLogin").onkeydown = function(event) {
         });
         document.getElementById("txtLogin").disabled = true;
         currentChannelName = globalChannelName;
-        // renderPage(); ???
     }
 }
 
@@ -257,11 +245,10 @@ function renderPage() {
 
     divMain.appendChild(divChat);
 
-    divUserName.innerHTML = "Logged in as <b><u>" + userName + "</u></b>"; // "mdpChat";
+    divUserName.innerHTML = "Logged in as <b><u>" + userName + "</u></b>"; 
     divCurrentChannel.innerHTML = currentChannelName;
     divCurrentChannel.className = "sideBySide";
     if (currentChannelName != globalChannelName) {
-        // divCurrentChannel.innerHTML = currentChannelName + '<div onclick="leaveGroup" class="handPointer">[X]</div>';
         var divLeave = document.createElement("div");
         divLeave.onclick = leaveGroup;
         divLeave.className = "handPointer";
